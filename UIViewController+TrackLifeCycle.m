@@ -79,25 +79,29 @@ const char kViewControllerWatcherKey;
         for (int i = 0; i < [originalSelectors count]; i++) {
             SEL originalSelector = [originalSelectors[i] pointerValue];
             SEL swizzledSelector = [swizzledSelectors[i] pointerValue];
-            Method originalMethod = class_getInstanceMethod(class,originalSelector);
-            Method swizzledMethod = class_getInstanceMethod(class,swizzledSelector);
-            BOOL didAddMethod =
-            class_addMethod(class,
-                            originalSelector,
-                            method_getImplementation(swizzledMethod),
-                            method_getTypeEncoding(swizzledMethod));
-            
-            if (didAddMethod) {
-                class_replaceMethod(class,
-                                    swizzledSelector,
-                                    method_getImplementation(originalMethod),
-                                    method_getTypeEncoding(originalMethod));
-            }
-            else {
-                method_exchangeImplementations(originalMethod, swizzledMethod);
-            }
+            swizzleMethod(class, originalSelector, swizzledSelector);
         }
     });
+}
+
+void swizzleMethod(Class class, SEL originalSelector, SEL swizzledSelector) {
+    Method originalMethod = class_getInstanceMethod(class, originalSelector);
+    Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
+    BOOL didAddMethod =
+    class_addMethod(class,
+                    originalSelector,
+                    method_getImplementation(swizzledMethod),
+                    method_getTypeEncoding(swizzledMethod));
+    
+    if (didAddMethod) {
+        class_replaceMethod(class,
+                            swizzledSelector,
+                            method_getImplementation(originalMethod),
+                            method_getTypeEncoding(originalMethod));
+    }
+    else {
+        method_exchangeImplementations(originalMethod, swizzledMethod);
+    }
 }
 
 #pragma mark - Method Swizzling Life Cycle
@@ -122,6 +126,7 @@ const char kViewControllerWatcherKey;
 - (void)nsi_viewDidAppear:(BOOL)animated {
     SLog(@"%@ viewDidAppear:%@", NSStringFromClass([self class]), animated ? @"YES":@"NO");
     [self nsi_viewDidAppear:animated];
+    [self logHierarchy];
 }
 
 - (void)nsi_viewWillDisappear:(BOOL)animated {
@@ -132,6 +137,29 @@ const char kViewControllerWatcherKey;
 - (void)nsi_viewDidDisappear:(BOOL)animated {
     SLog(@"%@ viewDidDisappear:%@", NSStringFromClass([self class]), animated ? @"YES":@"NO");
     [self nsi_viewDidDisappear:animated];
+}
+
+#pragma mark - Hierarchy
+
+- (void)logHierarchy {
+    NSString *viewControllerPath;
+    if ([self parentViewController] == nil) {
+        viewControllerPath = NSStringFromClass([self class]);
+    }
+    else if ([[self parentViewController] isKindOfClass:[UINavigationController class]]) {
+        UINavigationController *parentViewController = (UINavigationController *)[self parentViewController];
+        viewControllerPath = NSStringFromClass([parentViewController class]);
+        for (NSUInteger i = 0; i < parentViewController.viewControllers.count; i++) {
+            viewControllerPath = [viewControllerPath stringByAppendingString:@"~>"];
+            viewControllerPath = [viewControllerPath stringByAppendingString:NSStringFromClass([parentViewController.viewControllers[i] class])];
+        }
+    }
+    else if ([[self parentViewController] isKindOfClass:[UITabBarController class]]) {
+        viewControllerPath = NSStringFromClass([[self parentViewController] class]);
+        viewControllerPath = [viewControllerPath stringByAppendingString:@"~>"];
+        viewControllerPath = [viewControllerPath stringByAppendingString:NSStringFromClass([self class])];
+    }
+    SLog(@"%@", viewControllerPath);
 }
 
 @end
