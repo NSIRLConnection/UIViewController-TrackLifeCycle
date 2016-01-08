@@ -11,6 +11,7 @@
 #if DEBUG
 
 #import <objc/runtime.h>
+#import "NSILog.h"
 
 const char kViewControllerWatcherKey;
 
