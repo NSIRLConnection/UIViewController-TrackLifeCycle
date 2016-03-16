@@ -49,39 +49,12 @@ const char kViewControllerWatcherKey;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         Class class = [self class];
-        NSValue *loadViewSelector = [NSValue valueWithPointer:@selector(loadView)];
-        NSValue *viewDidLoadSelector = [NSValue valueWithPointer:@selector(viewDidLoad)];
-        NSValue *viewWillAppearSelector = [NSValue valueWithPointer:@selector(viewWillAppear:)];
-        NSValue *viewDidAppearSelector = [NSValue valueWithPointer:@selector(viewDidAppear:)];
-        NSValue *viewWillDisappearSelector = [NSValue valueWithPointer:@selector(viewWillDisappear:)];
-        NSValue *viewDidDisappearSelector = [NSValue valueWithPointer:@selector(viewDidDisappear:)];
-        
-        NSArray *originalSelectors = @[loadViewSelector,
-                                       viewDidLoadSelector,
-                                       viewWillAppearSelector,
-                                       viewDidAppearSelector,
-                                       viewWillDisappearSelector,
-                                       viewDidDisappearSelector];
-        
-        NSValue *nsi_loadViewSelector = [NSValue valueWithPointer:@selector(nsi_loadView)];
-        NSValue *nsi_viewDidLoadSelector = [NSValue valueWithPointer:@selector(nsi_viewDidLoad)];
-        NSValue *nsi_viewWillAppearSelector = [NSValue valueWithPointer:@selector(nsi_viewWillAppear:)];
-        NSValue *nsi_viewDidAppearSelector = [NSValue valueWithPointer:@selector(nsi_viewDidAppear:)];
-        NSValue *nsi_viewWillDisappearSelector = [NSValue valueWithPointer:@selector(nsi_viewWillDisappear:)];
-        NSValue *nsi_viewDidDisappearSelector = [NSValue valueWithPointer:@selector(nsi_viewDidDisappear:)];
-        
-        NSArray *swizzledSelectors = @[nsi_loadViewSelector,
-                                       nsi_viewDidLoadSelector,
-                                       nsi_viewWillAppearSelector,
-                                       nsi_viewDidAppearSelector,
-                                       nsi_viewWillDisappearSelector,
-                                       nsi_viewDidDisappearSelector];
-        
-        for (int i = 0; i < [originalSelectors count]; i++) {
-            SEL originalSelector = [originalSelectors[i] pointerValue];
-            SEL swizzledSelector = [swizzledSelectors[i] pointerValue];
-            swizzleMethod(class, originalSelector, swizzledSelector);
-        }
+        swizzleMethod(class, @selector(loadView), @selector(nsi_loadView));
+        swizzleMethod(class, @selector(viewDidLoad), @selector(nsi_viewDidLoad));
+        swizzleMethod(class, @selector(viewWillAppear:), @selector(nsi_viewWillAppear:));
+        swizzleMethod(class, @selector(viewWillDisappear:), @selector(nsi_viewWillDisappear:));
+        swizzleMethod(class, @selector(viewDidAppear:), @selector(nsi_viewDidAppear:));
+        swizzleMethod(class, @selector(viewDidDisappear:), @selector(nsi_viewDidDisappear:));
     });
 }
 
