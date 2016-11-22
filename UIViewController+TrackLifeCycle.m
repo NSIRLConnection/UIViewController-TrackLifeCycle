@@ -12,11 +12,15 @@
 
 #import <objc/runtime.h>
 #import "NSILog.h"
+#import "NSTimer+ProxyTarget.h"
+
+#pragma mark - Dealloc watcher
 
 const char kViewControllerWatcherKey;
 
 @interface ViewControllerWatcher : NSObject
 @property (nonatomic, copy, readonly) NSString *classString;
+@property (nonatomic, copy, readwrite) NSNumber *numberOfAliveTicks;
 + (instancetype)viewControllerWatcherWithClassString:(NSString *)classString;
 @end
 
@@ -34,11 +38,16 @@ const char kViewControllerWatcherKey;
         return nil;
     }
     _classString = classString;
+    _numberOfAliveTicks = @(0);
     return self;
 }
 
+- (void)incrementTicks {
+    self.numberOfAliveTicks = [NSNumber numberWithInteger:self.numberOfAliveTicks.integerValue + 1];
+}
+
 - (void)dealloc {
-    SLog(@"%@ dealloc", self.classString);
+    SLog(@"%@ dealloc, was alive for %@ minutes", _classString, _numberOfAliveTicks);
 }
 
 @end
@@ -82,14 +91,21 @@ void swizzleMethod(Class class, SEL originalSelector, SEL swizzledSelector) {
 
 - (void)nsi_loadView {
     SLog(@"%@ loadView", NSStringFromClass([self class]));
-    ViewControllerWatcher *watcher = [ViewControllerWatcher viewControllerWatcherWithClassString:NSStringFromClass([self class])];
-    objc_setAssociatedObject(self, &kViewControllerWatcherKey, watcher, OBJC_ASSOCIATION_RETAIN);
     [self nsi_loadView];
 }
 
 - (void)nsi_viewDidLoad {
     SLog(@"%@ viewDidLoad", NSStringFromClass([self class]));
+    ViewControllerWatcher *watcher = [ViewControllerWatcher viewControllerWatcherWithClassString:NSStringFromClass([self class])];
+    objc_setAssociatedObject(self, &kViewControllerWatcherKey, watcher, OBJC_ASSOCIATION_RETAIN);
+    [NSTimer scheduledTimerWithTimeInterval:60 weakTarget:self selector:@selector(confirmAlive) userInfo:nil repeats:YES];
     [self nsi_viewDidLoad];
+}
+
+- (void)nsi_confirmAlive {
+    ViewControllerWatcher *watcher =  objc_getAssociatedObject(self, &kViewControllerWatcherKey);
+    [watcher incrementTicks];
+    SLog(@"%@, alive for %@ minutes", [watcher classString], [watcher numberOfAliveTicks]);
 }
 
 - (void)nsi_viewWillAppear:(BOOL)animated {
@@ -133,7 +149,7 @@ void swizzleMethod(Class class, SEL originalSelector, SEL swizzledSelector) {
         viewControllerPath = [viewControllerPath stringByAppendingString:@"~>"];
         viewControllerPath = [viewControllerPath stringByAppendingString:NSStringFromClass([self class])];
     }
-    SLog(@"%@", viewControllerPath);
+    SLog(@"VC stack: %@", viewControllerPath);
 }
 
 @end
